@@ -8,16 +8,17 @@ import pylab as pl
 import matplotlib
 import numpy as np
 
-import cksgaia.io
-import cksgaia.plot.sample
-from cksgaia.plot.config import modpath
-from cksgaia.completeness import num_stars
-from cksgaia.calc import *
-from cksgaia.plot.config import *
+from .. import io
+from .. import fitting
+from .. import completeness
+from . import sample
+from ..completeness import num_stars
+from ..calc import *
+from .config import *
 
 
 def get_mass_samples():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample).query('gdir_prad > 1.75 & gdir_prad < 4')
+    physmerge = io.load_table(filtered_sample).query('gdir_prad > 1.75 & gdir_prad < 4')
 
     highcut = np.percentile(physmerge['giso_smass'], 67)
     lowcut = np.percentile(physmerge['giso_smass'], 33)
@@ -51,8 +52,9 @@ def histfitplot(physmerge, bin_centers, N, e, mask, result, result2, completenes
 
     xpos = eloc[0]
     ypos = eloc[1]
-    err1, err2 = cksgaia.misc.frac_err(physmerge, xpos, 'gdir_prad')
-    print "err+, err- = ", err1, err2
+    from .. import misc
+    err1, err2 = misc.frac_err(physmerge, xpos, 'gdir_prad')
+    print("err+, err- = ", err1, err2)
 
     _, caps, _ = pl.errorbar([xpos], [ypos], fmt='k.', xerr=[[err1], [err2]],
                              lw=1, capsize=3, mew=0, ms=0.1)
@@ -84,10 +86,10 @@ def histfitplot(physmerge, bin_centers, N, e, mask, result, result2, completenes
     #                          result.params['mu'].value,
     #                          result.params['sig'].value)
 
-    fit1 = cksgaia.fitting.lognorm(xmod, result2.params['amp1'].value,
+    fit1 = fitting.lognorm(xmod, result2.params['amp1'].value,
                                   result2.params['mu1'].value,
                                   result2.params['sig1'].value)
-    fit2 = cksgaia.fitting.lognorm(xmod, result2.params['amp2'].value,
+    fit2 = fitting.lognorm(xmod, result2.params['amp2'].value,
                                   result2.params['mu2'].value,
                                   result2.params['sig2'].value)
 
@@ -102,16 +104,16 @@ def histfitplot(physmerge, bin_centers, N, e, mask, result, result2, completenes
 
     # pl.plot(xmod, fit0, 'b--', lw=2, alpha=0.8)
 
-    fit = cksgaia.fitting.splinefunc(xmod, result.params['n1'].value, result.params['n2'].value,
+    fit = fitting.splinefunc(xmod, result.params['n1'].value, result.params['n2'].value,
                                     result.params['n3'].value, result.params['n4'].value,
                                     result.params['n5'].value, result.params['n6'].value,
                                     result.params['n7'].value)
-    fit_deconv = cksgaia.fitting.splinefunc(xmod, result.params['n1'].value, result.params['n2'].value,
+    fit_deconv = fitting.splinefunc(xmod, result.params['n1'].value, result.params['n2'].value,
                                            result.params['n3'].value, result.params['n4'].value,
                                            result.params['n5'].value, result.params['n6'].value,
                                            result.params['n7'].value, unc_limit=0)
 
-    node_heights = [result.params['n%d' % (n + 1)].value for n in range(len(cksgaia.fitting.nodes))]
+    node_heights = [result.params['n%d' % (n + 1)].value for n in range(len(fitting.nodes))]
 
     if plotmod:
         c2 = (0, 146 / 255., 146 / 255.)
@@ -128,8 +130,8 @@ def histfitplot(physmerge, bin_centers, N, e, mask, result, result2, completenes
         right = xmod >= masklim[1]
         pl.plot(xmod[left], fit[left], '-', color='0.9', lw=3)
         pl.plot(xmod[right], fit_deconv[right], '--', color='0.9', lw=3)
-        print cksgaia.fitting.nodes, node_heights
-        pl.plot(10 ** cksgaia.fitting.nodes, node_heights, 'o', color='none', mew=2, ms=14, mec=c2)
+        print(fitting.nodes, node_heights)
+        pl.plot(10 ** fitting.nodes, node_heights, 'o', color='none', mew=2, ms=14, mec=c2)
     pl.semilogx()
 
     # pl.annotate("super-\nEarths", xy=(0.17, 0.07), xycoords='axes fraction')
@@ -154,7 +156,7 @@ def histfitplot(physmerge, bin_centers, N, e, mask, result, result2, completenes
 
 
 def insol_hist():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
+    physmerge = io.load_table(config.filtered_sample)
 
     # cx, cy = np.loadtxt('/Users/bfulton/code/cksrad/data/detectability_p1.txt', unpack=True)
     cx, cy = np.loadtxt(os.path.join(modpath, 'data/sensitivity_p25.txt'), unpack=True)
@@ -179,8 +181,8 @@ def insol_hist():
     cool = physmerge.query('giso_insol < 50 & giso_insol > 10')
 
     lim = cy[np.argmin(np.abs(sx - 200))]
-    print lim
-    v = cksgaia.plot.sample.simplehist(hot, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.8),
+    print(lim)
+    v = plot.sample.simplehist(hot, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.8),
                                    annotate='$S_{\\rm inc} > 200 S_{\oplus}$', stacked=False, va_anno=False,
                                    weighted=True,
                                    nstars=num_stars, eloc=(4.5, 0.04), clim=lim)
@@ -199,9 +201,9 @@ def insol_hist():
     plti += 1
 
     lim = cy[np.argmin(np.abs(sx - 80))]
-    print lim
+    print(lim)
     pl.subplot(nrow, ncol, plti)
-    v = cksgaia.plot.sample.simplehist(medium, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.8),
+    v = sample.simplehist(medium, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.8),
                                    annotate='$80 S_{\oplus} \leq S_{\\rm inc} \leq 200 S_{\oplus}$', stacked=False,
                                    va_anno=False, weighted=True, nstars=num_stars, eloc=(4.5, 0.04), clim=lim)
 
@@ -222,9 +224,9 @@ def insol_hist():
     pl.ylabel('Number of Planets per Star')
 
     lim = cy[-2]
-    print lim
+    print(lim)
     pl.subplot(nrow, ncol, plti)
-    v = cksgaia.plot.sample.simplehist(cool, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.85),
+    v = sample.simplehist(cool, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.85),
                                    annotate='$10 S_{\oplus} \leq S_{\\rm inc} \leq 50 S_{\oplus}$', stacked=False,
                                    va_anno=False, weighted=True, nstars=num_stars, eloc=(4.5, 0.04), clim=lim)
 
@@ -242,13 +244,13 @@ def insol_hist():
 
 
 def money_plot_fit():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
+    physmerge = io.load_table(config.filtered_sample)
 
-    rmask, rbin_centers, rN, re, result1, result2 = cksgaia.fitting.histfit(physmerge,
+    rmask, rbin_centers, rN, re, result1, result2 = fitting.histfit(physmerge,
                                                                            completeness=False,
                                                                            verbose=False)
 
-    mask, bin_centers, N, e, result1, result2 = cksgaia.fitting.histfit(physmerge, completeness=True, boot_errors=False)
+    mask, bin_centers, N, e, result1, result2 = fitting.histfit(physmerge, completeness=True, boot_errors=False)
     histfitplot(physmerge, bin_centers, N, e, mask, result1, result2, completeness=True)
     pl.grid(False)
 
@@ -267,15 +269,15 @@ def money_plot_fit():
 
 
 def money_plot_plain():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
+    physmerge = io.load_table(config.filtered_sample)
 
-    print len(physmerge), (physmerge.gdir_srad_err1 / physmerge.gdir_srad).median()
+    print(len(physmerge), (physmerge.gdir_srad_err1 / physmerge.gdir_srad).median())
 
-    rmask, rbin_centers, rN, re, result1, result2 = cksgaia.fitting.histfit(physmerge,
+    rmask, rbin_centers, rN, re, result1, result2 = fitting.histfit(physmerge,
                                                                            completeness=False,
                                                                            verbose=False)
 
-    mask, bin_centers, N, e, result1, result2 = cksgaia.fitting.histfit(physmerge, completeness=True, boot_errors=False)
+    mask, bin_centers, N, e, result1, result2 = fitting.histfit(physmerge, completeness=True, boot_errors=False)
 
     histfitplot(physmerge, bin_centers, N, e, mask, result1, result2, completeness=True, plotmod=False)
     pl.grid(False)
@@ -298,16 +300,16 @@ def money_plot_plain():
 
 
 def radius_dist_old():
-    physmerge = cksgaia.io.load_table('cks3').dropna(subset=['gdir_prad'])
+    physmerge = io.load_table('cks3').dropna(subset=['gdir_prad'])
     weights = pd.read_csv
 
-    print len(physmerge), (physmerge.gdir_srad_err1 / physmerge.gdir_srad).median()
+    print(len(physmerge), (physmerge.gdir_srad_err1 / physmerge.gdir_srad).median())
 
-    rmask, rbin_centers, rN, re, result1, result2 = cksgaia.fitting.histfit(physmerge,
+    rmask, rbin_centers, rN, re, result1, result2 = fitting.histfit(physmerge,
                                                                            completeness=False,
                                                                            verbose=False)
 
-    mask, bin_centers, N, e, result1, result2 = cksgaia.fitting.histfit(physmerge, completeness=True, boot_errors=False)
+    mask, bin_centers, N, e, result1, result2 = fitting.histfit(physmerge, completeness=True, boot_errors=False)
 
     histfitplot(physmerge, bin_centers, N, e, mask, result1, result2, completeness=True, plotmod=False)
     pl.grid(False)
@@ -330,7 +332,7 @@ def radius_dist_old():
 
 
 def mass_cuts():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
+    physmerge = io.load_table(config.filtered_sample)
 
     # cx, cy = np.loadtxt('/Users/bfulton/code/cksrad/data/detectability_p1.txt', unpack=True)
     cx, cy = np.loadtxt(os.path.join(modpath, 'data/sensitivity_p25.txt'), unpack=True)
@@ -359,8 +361,8 @@ def mass_cuts():
 
     # lim = cy[np.argmin(np.abs(sx - 200))]
     lim = 1.14
-    print lim
-    v = cksgaia.plot.sample.simplehist(high, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.8),
+    print(lim)
+    v = sample.simplehist(high, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.8),
                                    annotate='$M_{\\star} > %3.2f M_{\odot}$' %highcut, stacked=False, va_anno=False,
                                    weighted=True,
                                    nstars=num_stars, eloc=(4.5, 0.04), clim=lim)
@@ -380,9 +382,9 @@ def mass_cuts():
 
     # lim = cy[np.argmin(np.abs(sx - 80))]
     lim = 1.14
-    print lim
+    print(lim)
     pl.subplot(nrow, ncol, plti)
-    v = cksgaia.plot.sample.simplehist(medium, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.8),
+    v = sample.simplehist(medium, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.8),
                                    annotate='$%3.2f M_{\odot} \leq M_{\\star} \leq %3.2f M_{\odot}$' % (highcut, lowcut),
                                    stacked=False, va_anno=False, weighted=True, nstars=num_stars,
                                    eloc=(4.5, 0.04), clim=lim)
@@ -405,9 +407,9 @@ def mass_cuts():
 
     lim = cy[-2]
     lim = 1.14
-    # print lim
+    # print(lim)
     pl.subplot(nrow, ncol, plti)
-    v = cksgaia.plot.sample.simplehist(low, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.85),
+    v = sample.simplehist(low, fill_valley=False, nbins=36, color='k', unc=True, aloc=(0.9, 0.85),
                                    annotate='$M_{\star} < %3.2f M_{\odot}$' % lowcut, stacked=False,
                                    va_anno=False, weighted=True, nstars=num_stars, eloc=(4.5, 0.04), clim=lim)
 
@@ -424,7 +426,7 @@ def mass_cuts():
     pl.xticks(xticks)
 
 def desert_edge():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample).query('gdir_prad > 1.75 & gdir_prad < 4')
+    physmerge = io.load_table(config.filtered_sample).query('gdir_prad > 1.75 & gdir_prad < 4')
 
     aloc = (0.1, 0.85)
 
@@ -455,7 +457,7 @@ def desert_edge():
 
     # lim = cy[np.argmin(np.abs(sx - 200))]
     lim = 1.14
-    print lim
+    print(lim)
 
     insolbins = np.logspace(np.log10(10), np.log10(10000), 20)
 
@@ -498,7 +500,7 @@ def desert_edge():
 
     # lim = cy[np.argmin(np.abs(sx - 80))]
     lim = 1.14
-    print lim
+    print(lim)
     pl.subplot(nrow, ncol, plti)
 
     cut = medium
@@ -541,7 +543,7 @@ def desert_edge():
 
     lim = cy[-2]
     lim = 1.14
-    # print lim
+    # print(lim)
     pl.subplot(nrow, ncol, plti)
 
     cut = low
@@ -630,7 +632,7 @@ def desert_edge_cum():
 
 
 def rocky_cores():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample).query('gdir_prad > 1.0 & koi_period <= 10')
+    physmerge = io.load_table(config.filtered_sample).query('gdir_prad > 1.0 & koi_period <= 10')
 
     aloc = (0.1, 0.85)
 
@@ -653,7 +655,7 @@ def rocky_cores():
 
     # # lim = cy[np.argmin(np.abs(sx - 200))]
     # lim = 1.14
-    # print lim
+    # print(lim)
 
     cut = high
     N, edges = np.histogram(cut['gdir_prad'].dropna().values, bins=insolbins, weights=cut['weight'])
@@ -669,7 +671,7 @@ def rocky_cores():
     for cap in caps:
         cap.set_markeredgewidth(2)
 
-    cksgaia.plot.config.logscale_rad()
+    config.logscale_rad()
 
 
     ax = pl.gca()
@@ -694,7 +696,7 @@ def rocky_cores():
 
     # lim = cy[np.argmin(np.abs(sx - 80))]
     lim = 1.14
-    print lim
+    print(lim)
     pl.subplot(nrow, ncol, plti)
 
     cut = medium
@@ -737,7 +739,7 @@ def rocky_cores():
 
     lim = cy[-2]
     lim = 1.14
-    # print lim
+    # print(lim)
     pl.subplot(nrow, ncol, plti)
 
     cut = low
@@ -791,7 +793,7 @@ def plot_dist(real_sample, data=False):
         pl.errorbar(real_sample['koi_period'], real_sample['gdir_prad'],
                     yerr=real_sample['gdir_prad_err1'], fmt='k.')
     pl.loglog()
-    cksgaia.plot.config.logscale_rad(axis='y')
+    config.logscale_rad(axis='y')
 
     ax = pl.gca()
     ax.xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
@@ -807,8 +809,8 @@ def plot_dist(real_sample, data=False):
 
 
 def mean_values(plot_met=False):
-    real_sample = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
-    ikic = cksgaia.completeness.fit_cdpp(cksgaia.io.load_table('kic-filtered'))
+    real_sample = io.load_table(config.filtered_sample)
+    ikic = completeness.fit_cdpp(io.load_table('kic-filtered'))
 
     sn_corners = [(0.0, 1.7), (100, 4.0)]
     e_corners = [(0.0, 1.0), (30, 1.7)]
@@ -834,15 +836,15 @@ def mean_values(plot_met=False):
 
     high = physmerge.query('giso_smass > @highcut')
     kicselect = ikic.copy().query('m17_smass > @highcut')
-    high = cksgaia.completeness.get_weights(high, kicselect)
+    high = completeness.get_weights(high, kicselect)
 
     medium = physmerge.query('giso_smass <= @highcut & giso_smass >= @lowcut')
     kicselect = ikic.copy().query('m17_smass <= @highcut & m17_smass >= @lowcut')
-    medium = cksgaia.completeness.get_weights(medium, kicselect)
+    medium = completeness.get_weights(medium, kicselect)
 
     low = physmerge.query('giso_smass < @lowcut')
     kicselect = ikic.copy().query('m17_smass < @lowcut')
-    low = cksgaia.completeness.get_weights(low, kicselect)
+    low = completeness.get_weights(low, kicselect)
 
     sn_smasses = []
     se_smasses = []
@@ -1040,8 +1042,8 @@ def mean_values(plot_met=False):
 
 
 def mean_met():
-    real_sample = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
-    ikic = cksgaia.completeness.fit_cdpp(cksgaia.io.load_table('kic-filtered'))
+    real_sample = io.load_table(config.filtered_sample)
+    ikic = completeness.fit_cdpp(io.load_table('kic-filtered'))
 
     sn_corners = [(0.0, 1.7), (100, 4.0)]
     e_corners = [(0.0, 1.0), (30, 1.7)]
@@ -1062,15 +1064,15 @@ def mean_met():
 
     high = physmerge.query('cks_smet > @highcut')
     kicselect = ikic.copy()#.query('FEH > @highcut')
-    high = cksgaia.completeness.get_weights(high, kicselect)
+    high = completeness.get_weights(high, kicselect)
 
     medium = physmerge.query('cks_smet <= @highcut & cks_smet >= @lowcut')
     kicselect = ikic.copy()#.query('FEH <= @highcut & FEH >= @lowcut')
-    medium = cksgaia.completeness.get_weights(medium, kicselect)
+    medium = completeness.get_weights(medium, kicselect)
 
     low = physmerge.query('cks_smet < @lowcut')
     kicselect = ikic.copy()#.query('FEH < @lowcut')
-    low = cksgaia.completeness.get_weights(low, kicselect)
+    low = completeness.get_weights(low, kicselect)
 
     sn_smasses = []
     se_smasses = []
@@ -1221,4 +1223,3 @@ def mean_met():
                 xycoords='axes fraction')
     pl.annotate("%.1f < R$_P$ <= %.1f R$_{\oplus}$" % (e_corners[0][1], e_corners[1][1]),
                 xy=(0.15, 0.60), xycoords='axes fraction')
-

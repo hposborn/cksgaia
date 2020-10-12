@@ -1,7 +1,7 @@
 import pylab as pl
 import numpy as np
 
-import cksgaia.plot.sample
+from .plot import sample
 
 def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
     # slope and intercept for subgiant filter
@@ -37,10 +37,10 @@ def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
             texline = "%s  &  %4.3f  \\\\" % (atxt, v_cks)
             if textable:
                 f = open('tmp.tex', 'a')
-                print >>f, texline
+                print(f, texline)
                 f.close()
 
-            print texline
+            print(texline)
 
             ylimits = [0, ymax_left]
             pl.subplot(nrow, ncol, left)
@@ -57,7 +57,7 @@ def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
         pl.subplots_adjust(hspace=0, wspace=0.25, top=0.98, bottom=0.05, right=0.96, left=0.15)
 
     if verbose:
-        print "Initial catalogue = %d planets." % len(physmerge)
+        print("Initial catalogue = %d planets." % len(physmerge))
 
     plti = _bipanel(physmerge, nrow, ncol, plti)
 
@@ -65,14 +65,14 @@ def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
     crop = physmerge[physmerge['cks_fp'] == False]
     post = len(crop)
     if verbose:
-        print "False positive filter removes %d planets." % (pre - post)
+        print("False positive filter removes %d planets." % (pre - post))
     plti = _bipanel(crop, nrow, ncol, plti, atxt='false pos. removed')
 
     pre = len(crop)
     crop = crop[crop['kic_kepmag'] <= 14.2]
     post = len(crop)
     if verbose:
-        print "Kp < 14.2 filter removes %d planets." % (pre - post)
+        print("Kp < 14.2 filter removes %d planets." % (pre - post))
     plti = _bipanel(crop, nrow, ncol, plti, eloc=(12.0, 70), atxt='$Kp < 14.2$')
 
     # pre = len(crop)
@@ -86,7 +86,7 @@ def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
     crop = crop[~(crop['fur17_rcorr_avg'] > 1.05)]
     post = len(crop)
     if verbose:
-        print "Furlan+17 Rp correction < 5%% filter removes %d planets." % (pre - post)
+        print("Furlan+17 Rp correction < 5%% filter removes %d planets." % (pre - post))
     plti = _bipanel(crop, nrow, ncol, plti, eloc=(12.0, 70), atxt='dilution $\leq$ 5%% (%d)')
 
     # pre = len(crop)
@@ -103,7 +103,7 @@ def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
     crop = crop[crop['gaia2_gflux_ratio'] < 1.1]
     post = len(crop)
     if verbose:
-        print "GAIA dilution < 1.1 filter removes %d planets." % (pre - post)
+        print("GAIA dilution < 1.1 filter removes %d planets." % (pre - post))
     plti = _bipanel(crop, nrow, ncol, plti, eloc=(12.0, 60), atxt='$G_{\\rm blend} < 1.1$')
 
 
@@ -111,7 +111,7 @@ def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
     crop = crop[crop['koi_impact'] <= 0.9]
     post = len(crop)
     if verbose:
-        print "b < 0.9 filter removes %d planets." % (pre - post)
+        print("b < 0.9 filter removes %d planets." % (pre - post))
     plti = _bipanel(crop, nrow, ncol, plti, eloc=(12.0, 60), atxt='$b < 0.9$')
 
     # pre = len(crop)
@@ -151,14 +151,14 @@ def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
     crop = crop[crop['gdir_srad'] <= 10 ** (ls * (crop['cks_steff'] - 5500) + li)]
     post = len(crop)
     if verbose:
-        print "Subgiant filter removes %d planets." % (pre - post)
+        print("Subgiant filter removes %d planets." % (pre - post))
     plti = _bipanel(crop, nrow, ncol, plti, eloc=(12.0, 60), atxt='giant stars removed')
 
     pre = len(crop)
     crop = crop[(crop['cks_steff'] <= 6500) & (crop['cks_steff'] >= 4700)]
     post = len(crop)
     if verbose:
-        print "Teff filter removes %d planets." % (pre - post)
+        print("Teff filter removes %d planets." % (pre - post))
     plti = _bipanel(crop, nrow, ncol, plti, eloc=(12.0, 60), aloc=(0.95, 0.85), atxt='4700 K < $T_{\\rm eff}$ < 6500 K')
 
     diff = crop['giso2_sparallax'] - crop['gaia2_sparallax']
@@ -167,7 +167,7 @@ def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
     crop = crop[(np.abs(diff / diff_err) < 4)]
     post = len(crop)
     if verbose:
-        print "Parallax filter removes %d planets." % (pre - post)
+        print("Parallax filter removes %d planets." % (pre - post))
     plti = _bipanel(crop, nrow, ncol, plti, eloc=(12.0, 60), aloc=(0.95, 0.85), atxt='$\pi_{\rm iso} \approx \pi_{\rm dir}')
 
 
@@ -175,7 +175,7 @@ def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
     # crop = crop[(crop['koi_snr'] >= 12)]
     # post = len(crop)
     # if verbose:
-    #     print "SNR > 10 filter removes %d planets." % (pre-post)
+    #     print("SNR > 10 filter removes %d planets." % (pre-post))
     # plti = _bipanel(crop, nrow, ncol, plti, eloc=(8.0, 50), atxt='SNR > 10')
 
     if mkplot:
@@ -196,6 +196,6 @@ def apply_filters(physmerge, mkplot=False, verbose=False, textable=False):
 
     if verbose:
         print
-        print "Final sample = %d planets." % len(crop)
+        print("Final sample = %d planets." % len(crop))
 
     return crop

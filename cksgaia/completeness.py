@@ -1,12 +1,13 @@
 import numpy as np
 # import astropy.constants as C
-from astropysics import constants as C
+from astropy import constants as C
+import astropy.units as u
 import pandas as pd
 import pylab as pl
 
-import cksgaia.io
-import cksgaia.fitting
-from cksgaia.config import *
+from . import io
+from . import fitting
+from .config import *
 
 
 def fit_cdpp(kicselect):
@@ -19,6 +20,17 @@ def fit_cdpp(kicselect):
     Returns:
         DataFrame : same as input with several columns added
     """
+
+    CDPP3s=[]
+    CDPP6s=[]
+    CDPP12s=[]
+    for kic in kicselect.iterrows():
+        CDPP3s+=[np.array(kic[1]['CDPP3'][1:-1].replace('\n','').split()).astype(float)]
+        CDPP6s+=[np.array(kic[1]['CDPP6'][1:-1].replace('\n','').split()).astype(float)]
+        CDPP12s+=[np.array(kic[1]['CDPP12'][1:-1].replace('\n','').split()).astype(float)]
+    kicselect['CDPP3']=CDPP3s
+    kicselect['CDPP6']=CDPP6s
+    kicselect['CDPP12']=CDPP12s
 
     kicselect['m17_nquarters'] = kicselect['CDPP3'].apply(lambda x: np.clip(np.sum(x > 0), 0, 17))
     kicselect['m17_tobs'] = kicselect['m17_nquarters'].values * 90
@@ -34,7 +46,7 @@ def fit_cdpp(kicselect):
     # kicselect['m17_cdpp6'] = np.median(c6, axis=1)
     # kicselect['m17_cdpp12'] = np.median(c12, axis=1)
 
-    cdpp_arr = kicselect.as_matrix(columns=['m17_cdpp3', 'm17_cdpp6', 'm17_cdpp12']).transpose()
+    cdpp_arr = kicselect.loc[:,['m17_cdpp3', 'm17_cdpp6', 'm17_cdpp12']].values.T
     pfit = np.polyfit(1 / np.sqrt([3., 6., 12.]), cdpp_arr, 2)
 
     kicselect['m17_cdpp_fit0'] = pfit[2, :]
@@ -50,10 +62,10 @@ def detection_prob(prad, per, kicselect, nkic=None, step=False):
 
     # Put this planet around all other stars
     # Calculate new durations
-    a = (C.G * kicselect['m17_smass'].values * C.Ms * ((per * (24 * 3600.)) / (2 * np.pi)) ** 2) ** (1 / 3.) * C.aupercm
-    R = kicselect['gaia2_srad'].values * C.Rs * C.aupercm
-    durations = (per * 24. / np.pi) * np.arcsin(R / a)
-    rors = (prad * (C.Re / C.Rs)) / kicselect['gaia2_srad'].values
+    a = ((C.G * kicselect['m17_smass'].values * u.Msun * ((per*u.day) / (2 * np.pi)) ** 2) ** (1 / 3.))
+    R = (kicselect['gaia2_srad'].values * u.Rsun)
+    durations = (((per*u.day).to(u.hour).value) / np.pi) * np.arcsin((R / a).decompose().value)
+    rors = ((prad * u.Rearth) / (kicselect['gaia2_srad'].values*u.Rsun)).decompose().value
 
     x = 1 / np.sqrt(durations)
     cdpp_durs = kicselect['m17_cdpp_fit0'].values + \
@@ -64,7 +76,7 @@ def detection_prob(prad, per, kicselect, nkic=None, step=False):
     other_snr = rors ** 2 * (per / kicselect['m17_tobs'].values) ** -0.5 * (1 / (cdpp_durs * 1e-6))
 
     # s = cksrad.fitting.logistic(other_snr, step=step)
-    s = cksgaia.fitting.gamma_complete(other_snr, step=step)
+    s = fitting.gamma_complete(other_snr, step=step)
     s[np.isnan(s)] = 0.0
     det = np.sum(s) / np.float(nkic)
 
@@ -112,13 +124,10 @@ def get_weights(kois, kicselect):
     det_prob = np.array(det_prob)
     # tr_prob = 0.7/kois['koi_dor'].values
 
-    mstar_g = kois['giso_smass'].values * C.Ms
-    per_s = kois['koi_period'].values * (24 * 3600.)
+    mstar_g = kois['giso_smass'].values * u.Msun
+    per_s = kois['koi_period'].values * u.day
 
-    a_cm = (C.G * mstar_g * (per_s / (2 * np.pi)) ** 2) ** (1 / 3.)
-    # a = (num/(2*np.pi)**2)**(1/3.) * C.aupercm
-    R_cm = kois['gdir_srad'].values * C.Rs
-    tr_prob = 0.9 * R_cm / a_cm
+    tr_prob = 0.9 * ((kois['gdir_srad'].values * u.Rsun) / ((C.G * mstar_g * (per_s / (2 * np.pi)) ** 2) ** (1 / 3.))).decompose().value
 
     weights = 1 / (det_prob * tr_prob)
 
@@ -130,8 +139,8 @@ def get_weights(kois, kicselect):
 
 
 def weight_merge(physmerge):
-    kic = cksgaia.io.load_table('kic')
-    kicselect = cksgaia.io.load_table('kic-filtered')
+    kic = io.load_table('kic')
+    kicselect = io.load_table('kic-filtered')
     kicselect = fit_cdpp(kicselect)
 
     physmerge = pd.merge(physmerge, kic, on='id_kic')
@@ -152,23 +161,23 @@ def get_sensitivity_contour(kicselect, percentile):
     nkic = kicselect['id_kic'].count()
 
     for i, p in enumerate(pgrid):
-        smas = (kicselect['m17_smass'] * (p / 365.) ** 2) ** (1 / 3.)
-        a = (C.G * kicselect['gaia2_srad'] * C.Ms * ((p * (24 * 3600.)) / (2 * np.pi)) ** 2) ** (1 / 3.) * C.aupercm
-        R = kicselect['gaia2_srad'] * C.Rs * C.aupercm
-        durations = (p * 24. / np.pi) * np.arcsin(R / a)
-        aors = (smas / 0.00465047) / kicselect['gaia2_srad']
+        smas = ((kicselect['m17_smass']*u.Msun * (p *u.day) ** 2) ** (1 / 3.)).to(u.AU)
+        a = (C.G * (kicselect['m17_smass'] * u.Msun) * ((p * u.day) / (2 * np.pi)) ** 2) ** (1 / 3.)
+        R = kicselect['gaia2_srad'] * u.Rsun
+        durations = ((p * u.day) / np.pi) * np.arcsin(R / a)
+        aors = (smas / (kicselect['gaia2_srad']*u.Rsun)).decompose().value
 
-        x = 1 / np.sqrt(durations)
+        x = 1 / np.sqrt(durations.to(u.hour))
         cdpp_dur = kicselect['m17_cdpp_fit0'] + kicselect['m17_cdpp_fit1'] * x + kicselect['m17_cdpp_fit2'] * x ** 2
 
         for j, r in enumerate(rgrid):
-            rors = (r * (C.Re / C.Rs)) / kicselect['gaia2_srad']
+            rors = (r*u.Rearth) / (kicselect['gaia2_srad']*u.Rsun).decompose().value
 
-            snr = (r * (C.Re / C.Rs) / kicselect['m17_smass']) ** 2 * (p / kicselect['m17_tobs']) ** -0.5 * (
-                        1 / (cdpp_dur * 1e-6))
+            snr = ((r*u.Rearth) / (kicselect['gaia2_srad']*u.Msun)) ** 2 * (p / kicselect['m17_tobs']) ** -0.5 * (
+                        1 / (cdpp_dur * 1e-6)).decompose().value
 
             tr = np.nanmedian((0.9 / aors))
-            sens = cksgaia.completeness.detection_prob(r, p, kicselect, nkic=nkic, step=True)
+            sens = detection_prob(r, p, kicselect, nkic=nkic, step=True)
             prob = sens * tr
 
             prob_grid[i, j] = prob
@@ -194,4 +203,3 @@ def get_sensitivity_contour(kicselect, percentile):
     # cy = v[:, 1]
 
     return cx, cy
-

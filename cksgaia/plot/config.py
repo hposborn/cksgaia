@@ -3,8 +3,6 @@ import matplotlib
 import pylab as pl
 import os
 
-import cksgaia
-
 matplotlib.rcParams['font.size'] = 12
 
 matplotlib.rcParams['figure.figsize'] = (5, 3.5)
@@ -20,7 +18,7 @@ full_sample = 'cksgaia-planets'
 filtered_sample = 'cksgaia-planets-weights'
 
 
-modpath = '/'.join(os.path.dirname(cksgaia.__file__).split('/')[:-1])
+modpath = '/'.join(os.path.dirname(__file__).split('/')[:-2])
 
 print("Making plots with the {} table for the full sample and {} table for the filtered sample."
       .format(full_sample, filtered_sample))

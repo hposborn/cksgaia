@@ -1,7 +1,7 @@
 """
 Module for computing excintion to kepler targets
 """
-import cksgaia.io
+from . import io
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 import os
@@ -12,7 +12,7 @@ from dustmaps.bayestar import BayestarWebQuery
 def add_extinction(df, mode):
     """
     add_extinction
-    
+
     Args:
         df (pandas.DataFrame): must have following columns:
             - ra (decimal degrees)
@@ -21,26 +21,26 @@ def add_extinction(df, mode):
         mode (str): which dust model to use
             - bayestar2017 (Green et al. 2018)
             - bayestar2015 (Green et al. 2015)
-    
+
     Returns:
         pandas.DataFrame: with following columns added
             - ak: extinction in K
             - ak_err: error on extinction in K including Rv and E(B-V)
     """
-    dist = np.array(1 / df['gaia2_sparallax'] * 1000) * u.pc
+    dist = np.clip(np.array(1 / df['gaia2_sparallax'] * 1000),0,100000000) * u.pc
 
     coords = SkyCoord(
-        ra=np.array(df.ra)*u.degree, dec=np.array(df.dec)*u.degree, 
+        ra=np.array(df.ra)*u.degree, dec=np.array(df.dec)*u.degree,
         distance=dist, frame='icrs'
     )
     rk_frac_err = 0.3 # Fractional uncertainty in R_K
     if mode=='bayestar2017':
         bayestar = BayestarWebQuery(version='bayestar2017')
-        rk = 0.224 # A_K / E(B-V) 
-        
+        rk = 0.224 # A_K / E(B-V)
+
     if mode=='bayestar2015':
         bayestar = BayestarWebQuery(version='bayestar2017')
-        rk = 0.310 # A_K / E(B-V) 
+        rk = 0.310 # A_K / E(B-V)
 
     ebv = bayestar(coords, mode='percentile', pct=[16., 50., 84.])
 
@@ -60,8 +60,3 @@ def add_extinction(df, mode):
     df['ext_ebv_err'] = 0.5*(ebv[:,2] - ebv[:,0])
     df = pd.DataFrame(df)
     return df
-
-
-
-
-

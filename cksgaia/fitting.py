@@ -3,12 +3,11 @@ import pandas as pd
 import scipy.stats
 import scipy.ndimage
 from scipy.interpolate import interp1d, InterpolatedUnivariateSpline, UnivariateSpline, LSQUnivariateSpline
-import pp
 
 import lmfit
 
-import cksgaia.misc
-from cksgaia.config import *
+from . import misc
+from .config import *
 
 
 # Period and radius bins
@@ -49,7 +48,7 @@ def gamma_complete(x, result=None, step=False):
         scale = 0.49
 
     f = scipy.stats.gamma.cdf(x, a, loc, scale)
-        
+
     if step:
         cutoff = 12.0
         if len(x) < 1:
@@ -65,7 +64,7 @@ def gamma_complete(x, result=None, step=False):
 def logistic(x, a=0.0, b=8.06, c=8.11, d=0.995, step=False):
     """
     Christiansen et al. (2016) logistic
-    function for Kepler completeness as a function of 
+    function for Kepler completeness as a function of
     MES.
 
     Args:
@@ -73,7 +72,7 @@ def logistic(x, a=0.0, b=8.06, c=8.11, d=0.995, step=False):
     Returns
         float: completeness at MES=x
     """
-    
+
     # a = 0.0
     # b = 8.06
     # c = 8.11
@@ -94,7 +93,7 @@ def logistic(x, a=0.0, b=8.06, c=8.11, d=0.995, step=False):
 def lognorm(x, amp, mu, sig, unc_limit=0.0967):
     #pdf = amp/(x*sig*np.sqrt(2*np.pi)) * np.exp(-(((np.log(x) - np.log(mu))**2)/(2*sig**2)))
     #pdf = amp * np.log10(np.e)/(x*sig*np.sqrt(2*np.pi)) * np.exp(-(((np.log10(x) - np.log10(mu))**2)/(2*sig**2)))
-    
+
     wid = np.sqrt(sig**2 + unc_limit**2) / np.log(10.)
     pdf = gauss(np.log10(x), amp, np.log10(mu), wid)
     return pdf
@@ -102,20 +101,20 @@ def lognorm(x, amp, mu, sig, unc_limit=0.0967):
 
 def twolognorm(x, amp1, mu1, sig1, amp2, mu2, sig2, unc_limit=0.0967):
     pdf = lognorm(x, amp1, mu1, sig1, unc_limit=unc_limit) + lognorm(x, amp2, mu2, sig2, unc_limit=unc_limit)
-    
+
     return pdf
 
 def threefunc(x, c1, c2, tau, amp, mu, sig, b1=2.5, unc_limit=0.0967):
     mod = np.zeros_like(x)
-    
-    
+
+
     reg2 = np.where(x <= b1)[0]
     ng = lognorm(x[reg2], amp, mu, sig, unc_limit=0)
-    
+
     mod[reg2] = c1 - ng
-    
+
     break_val = c1 - lognorm(b1, amp, mu, sig, unc_limit=0)
-        
+
     reg1 = np.where(x > b1)[0]
     mod[reg1] = lognorm(x[reg1], break_val-c2, b1, tau, unc_limit=0) + c2
 
@@ -124,12 +123,12 @@ def threefunc(x, c1, c2, tau, amp, mu, sig, b1=2.5, unc_limit=0.0967):
         mod = scipy.ndimage.gaussian_filter(mod, sigma)
 
     mod = np.clip(mod, 0, 1)
-    
+
     return mod
 
 def splinefunc(x, n1, n2, n3, n4, n5, n6, n7, unc_limit=0.0967):
     heights = [n1, n2, n3, n4, n5, n6, n7]
-    
+
     mod = InterpolatedUnivariateSpline(nodes, heights, ext=3, k=2)(np.log10(x))
 
     if unc_limit > 0:
@@ -142,7 +141,7 @@ def splinefunc(x, n1, n2, n3, n4, n5, n6, n7, unc_limit=0.0967):
         #mod = scipy.ndimage.gaussian_filter(mod, sigma)
 
     mod = np.clip(mod, 0, 1)
-        
+
     return mod
 
 def bin_model(xmod, ymod, xbins):
@@ -154,7 +153,7 @@ def bin_model(xmod, ymod, xbins):
         bin_mod.append(ymod[inbin].mean())
 
     bin_mod = np.array(bin_mod)
-        
+
     return bin_mod
 
 
@@ -169,12 +168,12 @@ def resid_spline(params, x, y, err, xbins):
 
     mod = splinefunc(x, n1, n2, n3, n4, n5, n6, n7)
     bin_mod = bin_model(x, mod, xbins)
-    
+
     resid = (y-bin_mod)/err
     #resid = (y-mod)/err
 
     resid[np.isnan(resid)] = 0
-        
+
     return resid
 
 
@@ -186,7 +185,7 @@ def resid_piece(params, x, y, err):
     mu = params['mu'].value
     sig = params['sig'].value
     b1 = params['b1'].value
-    
+
     mod = threefunc(x, c1, c2, tau, amp, mu, sig, b1)
 
     return ((y-mod)/err)
@@ -196,12 +195,12 @@ def resid_single(params, x, y, err):
     amp = params['amp'].value
     mu = params['mu'].value
     sig = params['sig'].value
-    
+
     mod = lognorm(x, amp, mu, sig, unc_limit=0)
     res = ((y - mod)/err)
-        
+
     #res = -0.5 * np.exp(np.sum(res**2))
-        
+
     return res
 
 def resid_two(params, x, y, err):
@@ -213,22 +212,22 @@ def resid_two(params, x, y, err):
     sig2 = params['sig2'].value
 
     mod = twolognorm(x, amp1, mu1, sig1, amp2, mu2, sig2, unc_limit=0)
-    
+
     res = ((y - mod)/err)
-    
+
     #res = -0.5 * np.exp(np.sum(res**2))
-    
+
     return res
 
 
 def gauss(x, amp, mu, sig, normed=False):
     m = amp*np.exp(-(x-mu)**2/(2*sig**2))
     if np.isnan(m).any():
-        print amp, mu, sig
-    
+        print(amp, mu, sig)
+
     if normed:
         m = m/np.trapz(m, x)
-    
+
     return m
 
 def twogauss(x, amp1, mu1, sig1, amp2, mu2, sig2):
@@ -262,7 +261,7 @@ def twogauss(x, amp1, mu1, sig1, amp2, mu2, sig2):
 
 def histfit(physmerge, verbose=True, completeness=True, boot_errors=False):
     xbins = Redges
-    
+
     if completeness:
 
         bin_centers = 10**(np.log10(Redges[:-1]) + Rbinsize/2)
@@ -273,13 +272,13 @@ def histfit(physmerge, verbose=True, completeness=True, boot_errors=False):
 
         if boot_errors:
                 err_hist = comp_unc(physmerge)
-        
+
         sfac = 1/physmerge['tr_prob'].mean()
-        rhist = np.sum(detections, axis=0) 
+        rhist = np.sum(detections, axis=0)
         rhistn = rhist / num_stars * sfac
         rerr = np.sqrt(rhist) / num_stars * sfac
 
-        whist = np.sum(wdetections, axis=0) 
+        whist = np.sum(wdetections, axis=0)
         whistn = whist / num_stars
         if boot_errors:
             werr = np.sqrt((rerr * (whistn/rhistn) * efudge)**2 + err_hist**2)
@@ -296,7 +295,7 @@ def histfit(physmerge, verbose=True, completeness=True, boot_errors=False):
     mask = np.ones_like(bin_centers, dtype=bool)
     mask[np.where((bin_centers <= masklim[0]))[0]] = False
     #mask[np.where((bin_centers <= masklim[0]) & (bin_centers >= masklim[1])[0]] = False
-    
+
     e[e==0] = np.inf
     e[~mask] = np.inf
     e[np.isnan(e)] = 100
@@ -314,9 +313,9 @@ def histfit(physmerge, verbose=True, completeness=True, boot_errors=False):
 
     result = lmfit.minimize(resid_single, params, args=(x,y,err))
     if verbose:
-        print "\n***************************"
-        print "Single Gaussian fit"
-        print lmfit.fit_report(result)
+        print("\n***************************")
+        print("Single Gaussian fit")
+        print(lmfit.fit_report(result))
 
     params = lmfit.Parameters()
     params.add('amp1', value = 0.07, min=0.0, max=1.0, vary=True)
@@ -328,11 +327,11 @@ def histfit(physmerge, verbose=True, completeness=True, boot_errors=False):
 
     result2 = lmfit.minimize(resid_two, params, args=(x,y,err))
     if verbose:
-        print "\n***************************"
-        print "Double Gaussian fit"
-        print lmfit.fit_report(result2)
+        print("\n***************************")
+        print("Double Gaussian fit")
+        print(lmfit.fit_report(result2))
 
-        
+
     params = lmfit.Parameters()
     params.add('c1', value = 0.07, vary=True)
     params.add('c2', value=0.01, vary=True)
@@ -341,13 +340,13 @@ def histfit(physmerge, verbose=True, completeness=True, boot_errors=False):
     params.add('mu', value=1.75, min=1.1, max=3.0, vary=True)
     params.add('sig', value=0.07, min=0.01, max=1.0, vary=True)
     params.add('b1', value=2.4, min=2.0, max=3.5, vary=True)
-    
+
     result = lmfit.minimize(resid_piece, params, args=(x,y,err))
     if verbose:
-        print "\n***************************"
-        print "Piecewise fit"
-        print lmfit.fit_report(result)
-    
+        print("\n***************************")
+        print("Piecewise fit")
+        print(lmfit.fit_report(result))
+
 
     params = lmfit.Parameters()
     params.add('n1', value = y[0], min=0.0, max=1.0, vary=False)
@@ -357,14 +356,14 @@ def histfit(physmerge, verbose=True, completeness=True, boot_errors=False):
     params.add('n5', value = 0.04, min=0.0, max=1.0, vary=True)
     params.add('n6', value = 0.004, min=0.0, max=1.0, vary=True)
     params.add('n7', value = 0.0005, min=0.0, max=1.0, vary=True)
-    
+
     result = lmfit.minimize(resid_spline, params, args=(x,y,err,Redges[mask2]))
     if verbose:
-        print "\n***************************"
-        print "Spline fit"
-        print lmfit.fit_report(result)
+        print("\n***************************")
+        print("Spline fit")
+        print(lmfit.fit_report(result))
 
-        
+
     return (mask, bin_centers, N, e, result, result2)
 
 
@@ -376,19 +375,19 @@ def mcmc(x, y, err, result, nsteps=1000):
 
     def lnprob_two(params):
         res = resid_two(params, x, y, err)
-        
+
         return -0.5*np.sum(res**2 + np.log(2*np.pi*err**2))
 
     def lnprob_spline(params):
         res = resid_spline(params, x, y, err, Redges[mask2])
 
         ln = -0.5*np.sum(res**2 + np.log(2*np.pi*err**2))
-        
+
         return ln
-    
+
     mini = lmfit.Minimizer(lnprob_spline, result.params)
     nburn = int(np.round(nsteps/10.))
-    print "Running %d steps after %d burn-in steps." % (nsteps, nburn)
+    print("Running %d steps after %d burn-in steps." % (nsteps, nburn))
     res = mini.emcee(burn=nburn, steps=nsteps, params=result.params, nwalkers=20)
 
     return res
@@ -398,20 +397,20 @@ def kde(values, errors):
 
     minloc = np.argmin(values)
     minlim = values[minloc] - 3*errors[minloc]
-    
+
     maxloc = np.argmax(values)
     maxlim = values[maxloc] + 3*errors[maxloc]
-    
+
     kx = np.linspace(minlim, maxlim, 2000)
     #kx = np.logspace(np.log10(minlim), np.log10(maxlim), 2000)
     ky = np.zeros_like(kx)
-        
+
     for val,err in zip(values, errors):
-        mod = gauss(kx, 1.0, val, err, normed=True)            
+        mod = gauss(kx, 1.0, val, err, normed=True)
         #mod = lognorm(kx, 1.0, val, err)
         ky += mod
     ky /= np.float(len(values))
-    
+
     return (kx, ky)
 
 
@@ -419,22 +418,22 @@ def wkde(values, errors, weights):
 
     minloc = np.argmin(values)
     minlim = np.clip(values[minloc] - 3*errors[minloc], 1e-6, np.inf)
-    
+
     maxloc = np.argmax(values)
     maxlim = values[maxloc] + 3*errors[maxloc]
-    
+
     #kx = np.linspace(minlim, maxlim, 1000)
     kx = np.logspace(np.log10(minlim), np.log10(maxlim), 1000)
     ky = np.zeros_like(kx)
-        
+
     for i,val in enumerate(values):
         err = errors[i]
         w = weights[i]
-        mod = w * gauss(kx, 1.0, val, err)            
+        mod = w * gauss(kx, 1.0, val, err)
         #mod = lognorm(kx, 1.0, val, err)
         ky += mod
     #ky /= np.float(len(values))
-    
+
     return (kx, ky)
 
 
@@ -479,7 +478,7 @@ def wkde2D(xvalues, yvalues, xerrors, yerrors, weights, xlim=None, ylim=None, ns
     xi, yi = np.mgrid[np.log10(xminlim):np.log10(xmaxlim):xspace,
                       np.log10(yminlim):np.log10(ymaxlim):yspace]
     pos = np.dstack((xi, yi))
-    
+
     z = np.zeros((len(xi), len(yi)))
     for i, val in enumerate(xvalues):
         x = xvalues[i]
@@ -495,12 +494,12 @@ def wkde2D(xvalues, yvalues, xerrors, yerrors, weights, xlim=None, ylim=None, ns
         mvn = scipy.stats.multivariate_normal([np.log10(x), np.log10(y)], [[xe, 0.0], [0.0, ye]])
         mod = mvn.pdf(pos)
         mod = w * (mod / np.max(mod))
-        
+
         z += mod
     z /= np.float(nstars)
-        
+
     return (xi, yi, z)
-    
+
 def draw_planets(binl, binr, values, num_draws=1000):
     N = np.array(np.round(values * num_draws), dtype=int)
     planets = []
@@ -508,7 +507,7 @@ def draw_planets(binl, binr, values, num_draws=1000):
     for l, r in zip(binl, binr):
         planets.append(np.random.uniform(l, r, size=N[i]))
         i += 1
-        
+
     planets = np.hstack(planets)
-        
+
     return planets

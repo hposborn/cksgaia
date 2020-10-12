@@ -3,12 +3,14 @@ import numpy as np
 import pylab as pl
 import matplotlib.pyplot as plt
 
-import cksgaia.io
-import cksgaia.calc
-import cksgaia.completeness
+from .. import io
+from .. import calc
+from .. import completeness
+from .. import fitting
 
-from cksgaia.config import *
-from cksgaia.plot.config import *
+from ..config import *
+from . import config
+from . import occur
 
 def contour_plot_kde(physmerge, xcol, ycol, xlim, ylim, ylog=True, pltxlim=None, pltylim=None, epos=[3000, 5],
                      cont=True, nodata=False, weighted=False, nstars=36075., eaoff=(0, -30), clabel=None,
@@ -58,15 +60,15 @@ def contour_plot_kde(physmerge, xcol, ycol, xlim, ylim, ylog=True, pltxlim=None,
     xerr1 = crop[xcol + '_err1'].values
     yerr1 = crop[ycol + '_err1'].values
     if kwidth != None:
-        print kwidth
+        print(kwidth)
         xerr1 = np.zeros_like(xerr1) + kwidth[0] * crop[xcol].values
         yerr1 = np.zeros_like(yerr1) + kwidth[1] * crop[ycol].values
 
-    xi, yi, zi = cksgaia.fitting.wkde2D(crop[xcol].values, crop[ycol].values,
+    xi, yi, zi = fitting.wkde2D(crop[xcol].values, crop[ycol].values,
                                        xerr1, yerr1,
                                        weights, xlim=xlim, ylim=ylim, nstars=nstars)
 
-    print nplanets, (crop['gdir_prad_err1'] / crop['gdir_prad']).median()
+    print(nplanets, (crop['gdir_prad_err1'] / crop['gdir_prad']).median())
 
     # cmap = plt.cm.inferno_r
     # cmap = plt.cm.gray_r
@@ -97,9 +99,10 @@ def contour_plot_kde(physmerge, xcol, ycol, xlim, ylim, ylog=True, pltxlim=None,
     if not nodata:
         pl.plot(crop[xcol], crop[ycol], 'ko', ms=3, markeredgewidth=0.5, markeredgecolor='w')
 
+    from .. import misc
     xe, ye = epos
-    xerr1, xerr2 = cksgaia.misc.frac_err(physmerge, xe, xcol)
-    yerr1, yerr2 = cksgaia.misc.frac_err(physmerge, ye, ycol)
+    xerr1, xerr2 = misc.frac_err(physmerge, xe, xcol)
+    yerr1, yerr2 = misc.frac_err(physmerge, ye, ycol)
 
     _, caps, _ = pl.errorbar(xe, ye, yerr=[[yerr1], [yerr2]], xerr=[[xerr1], [xerr2]],
                              markeredgewidth=0, lw=1, capsize=2, markeredgecolor='w', fmt='k.', ms=0.1)
@@ -156,13 +159,13 @@ def period_contour_cks(sample=None, kwidth=(0.40, 0.05), vlims=(0.0, 0.04),
                        cbar=True):
 
     if sample is None:
-        physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
+        physmerge = io.load_table(config.filtered_sample)
         # fig = pl.figure(figsize=(6,4))
         pl.subplots_adjust(right=0.91, left=0.15)
     else:
         physmerge = sample
 
-    wper, wsens = np.genfromtxt(os.path.join(modpath, 'data/detectability_p1.txt'), unpack=True)
+    wper, wsens = np.genfromtxt(os.path.join(config.modpath, 'data/detectability_p1.txt'), unpack=True)
 
     ax, xi, yi, zi = contour_plot_kde(physmerge, 'koi_period', 'gdir_prad', xlim=[0.4, 1000.0],
                                       ylim=[0.5, 20], ylog=True,
@@ -174,9 +177,9 @@ def period_contour_cks(sample=None, kwidth=(0.40, 0.05), vlims=(0.0, 0.04),
         cx, cy = clim
     else:
         # cx, cy = np.loadtxt(os.path.join(DATADIR, 'sensitivity_p25.txt'), unpack=True)
-        kicsample = cksgaia.io.load_table('kic-filtered')
-        kicsample = cksgaia.completeness.fit_cdpp(kicsample)
-        cx, cy = cksgaia.completeness.get_sensitivity_contour(kicsample, 0.25)
+        kicsample = io.load_table('kic-filtered')
+        kicsample = completeness.fit_cdpp(kicsample)
+        cx, cy = completeness.get_sensitivity_contour(kicsample, 0.25)
     pl.fill_between(cx, cy, y2=0.1, color='0.2', zorder=10, alpha=0.8, hatch='\\\\')
     # pl.annotate('      low\ncompleteness', xy=(30, 1.03),
     #             xycoords='data', color='0.2', fontsize=afs - 2)
@@ -202,7 +205,7 @@ def period_contour_cks(sample=None, kwidth=(0.40, 0.05), vlims=(0.0, 0.04),
 
 
 def insol_contour_anno():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
+    physmerge = io.load_table(config.filtered_sample)
 
     ax, xi, yi, zi_iso = contour_plot_kde(physmerge, 'giso_insol', 'gdir_prad', xlim=[3, 30000],
                                                           ylim=[0.5, 10], ylog=True,
@@ -224,7 +227,7 @@ def insol_contour_anno():
     # pl.plot([30, 1000], [1.9,1.9], 'w--', lw=4)
 
     # cx, cy = np.loadtxt('/Users/bfulton/code/cksrad/data/detectability_p1.txt', unpack=True)
-    cx, cy = np.loadtxt(os.path.join(modpath, 'data/sensitivity_p25.txt'), unpack=True)
+    cx, cy = np.loadtxt(os.path.join(config.modpath, 'data/sensitivity_p25.txt'), unpack=True)
     # cx, cy = np.loadtxt('/Users/bfulton/code/cksrad/data/sensitivity_p50.txt', unpack=True)
     a = (physmerge['giso_smass'].max() * (cx / 365.) ** 2) ** (1 / 3.)
     sx = (physmerge['cks_steff'].max() / 5778) ** 4.0 * (physmerge['gdir_srad'].max() / a) ** 2.0
@@ -255,7 +258,7 @@ def insol_contour_anno():
 def insol_contour_data(sample=None, vlims=(0.0, 0.03), kwidth=(0.4, 0.05), clims=None,
                        cbar=True):
     if sample is None:
-        physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
+        physmerge = io.load_table(config.filtered_sample)
         # fig = pl.figure(figsize=(5, 3.5))
         pl.subplots_adjust(right=0.91, left=0.15)
     else:
@@ -264,9 +267,6 @@ def insol_contour_data(sample=None, vlims=(0.0, 0.03), kwidth=(0.4, 0.05), clims
     if clims is None:
         # cx, cy = np.loadtxt('/Users/bfulton/code/cksrad/data/detectability_p1.txt', unpack=True)
         cx, cy = np.loadtxt(os.path.join(os.environ['HOME'],'code/cksrad/data/sensitivity_p25.txt'), unpack=True)
-        # kicsample = cksgaia.io.load_table('kic-filtered')
-        # kicsample = cksgaia.completeness.fit_cdpp(kicsample)
-        # cx, cy = cksgaia.completeness.get_sensitivity_contour(kicsample, 0.25)
     else:
         cx, cy = clims
     a = (physmerge['giso_smass'].max() * (cx / 365.) ** 2) ** (1 / 3.)
@@ -300,7 +300,7 @@ def insol_contour_data(sample=None, vlims=(0.0, 0.03), kwidth=(0.4, 0.05), clims
 
 
 def srad_contour():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
+    physmerge = io.load_table(config.filtered_sample)
     physmerge['weight'] = np.median(physmerge['weight'])
 
     ax, xi, yi, zi = contour_plot_kde(physmerge, 'gdir_srad', 'gdir_prad', xlim=[0.4, 3.0],
@@ -326,7 +326,7 @@ def srad_contour():
 
 
 def smass_contour():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
+    physmerge = io.load_table(config.filtered_sample)
     physmerge['weight'] = np.median(physmerge['weight'])
 
     # physmerge = physmerge.query('10 <= koi_period < 30')
@@ -356,11 +356,10 @@ def smass_contour():
 
 
 def contour_masscuts():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
-    kicselect = cksgaia.io.load_table('kic-filtered')
-    kicselect = cksgaia.completeness.fit_cdpp(kicselect)
-
-    highcut, lowcut, _, _, _, annotations = cksgaia.plot.occur.get_mass_samples()
+    physmerge = io.load_table(config.filtered_sample)
+    kicselect = io.load_table('kic-filtered')
+    kicselect = completeness.fit_cdpp(kicselect)
+    highcut, lowcut, _, _, _, annotations = occur.get_mass_samples()
     annotations = annotations[::-1]
 
     high = physmerge.query('giso_smass > @highcut')
@@ -388,11 +387,11 @@ def contour_masscuts():
         elif sample is low:
             kicsample = kicselect.query('m17_smass < @lowcut')
 
-        sample = cksgaia.completeness.get_weights(sample, kicsample)
+        sample = completeness.get_weights(sample, kicsample)
 
         # get 25% completeness limits
         pl.figure(2)
-        cx, cy = cksgaia.completeness.get_sensitivity_contour(kicsample, 0.25)
+        cx, cy = completeness.get_sensitivity_contour(kicsample, 0.25)
 
         pl.figure(1)
         insol_contour_data(sample=sample, vlims=vlimits[i], kwidth=(0.75, 0.05), cbar=cbar)
@@ -418,11 +417,11 @@ def contour_masscuts():
 
 
 def period_contour_masscuts():
-    physmerge = cksgaia.io.load_table(cksgaia.plot.config.filtered_sample)
-    kicselect = cksgaia.io.load_table('kic-filtered')
-    kicselect = cksgaia.completeness.fit_cdpp(kicselect)
+    physmerge = io.load_table(config.filtered_sample)
+    kicselect = io.load_table('kic-filtered')
+    kicselect = completeness.fit_cdpp(kicselect)
 
-    highcut, lowcut, _, _, _, annotations = cksgaia.plot.occur.get_mass_samples()
+    highcut, lowcut, _, _, _, annotations = occur.get_mass_samples()
     annotations = annotations[::-1]
 
     high = physmerge.query('giso_smass > @highcut')
@@ -449,11 +448,11 @@ def period_contour_masscuts():
         elif sample is low:
             kicsample = kicselect.query('m17_smass < @lowcut')
 
-        sample = cksgaia.completeness.get_weights(sample, kicsample)
+        sample = completeness.get_weights(sample, kicsample)
 
         # get 25% completeness limits
         pl.figure(2)
-        cx, cy = cksgaia.completeness.get_sensitivity_contour(kicsample, 0.25)
+        cx, cy = completeness.get_sensitivity_contour(kicsample, 0.25)
 
         pl.figure(1)
         pl.subplot(1, 3, i+1)

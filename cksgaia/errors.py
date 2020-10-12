@@ -1,5 +1,5 @@
 import numpy as np
-import cksgaia.io
+from . import io
 import pandas as pd
 
 # Add radii in quadrature
@@ -115,5 +115,3 @@ def rchisq(df, key, prefixes):
     df['norm_sq_diff'] = (x2 - x1) ** 2 / (x2err ** 2 + x1err ** 2)
     _rchisq = df['norm_sq_diff'].sum() / len(df)
     return _rchisq, df
-
-

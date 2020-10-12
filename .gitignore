@@ -2,6 +2,9 @@ data/
 *.pdf
 *.ipynb
 */*.hdf
+kic_q0_q17.csv
+xmatch_m17_gaiadr2-result.csv
+kepler_stellar17.csv.gz
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

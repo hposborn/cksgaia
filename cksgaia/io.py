@@ -1,26 +1,30 @@
+from __future__ import unicode_literals
+
+
 from collections import OrderedDict
 import re
 
 import pandas as pd
 import numpy as np
 import ebf
-import cksgaia.plot
-import cksgaia.completeness
-from cksgaia.config import *
-import cksgaia.extinction
-import cksgaia.xmatch
-import cksgaia.calc
-from cksgaia.sample import apply_filters
+import plot
+from . import completeness
+from .config import *
+from . import io
+from . import extinction
+from . import xmatch
+from . import calc
+from .sample import apply_filters
 from astropy import units as u
 import astropy.io.ascii
-DATADIR = os.path.join(os.path.dirname(__file__), '../data/')
+DATADIR = "~/python/cksgaia/data"
 
 def load_table(table, cache=1, cachefn='load_table_cache.hdf', verbose=False):
     """Load tables used in cksgaia
 
     Args:
         table (str): name of table. must be one of
-            - nea 
+            - nea
 
 
         cache (Optional[int]): whether or not to use the cache
@@ -35,20 +39,20 @@ def load_table(table, cache=1, cachefn='load_table_cache.hdf', verbose=False):
     if cache==1:
         try:
             df = pd.read_hdf(cachefn,table)
-            print "read table {} from {}".format(table,cachefn)
+            print("read table {} from {}".format(table,cachefn))
             return df
         except IOError:
-            print "Could not find cache file: %s" % cachefn
-            print "Building cache..."
+            print("Could not find cache file: %s" % cachefn)
+            print("Building cache...")
             cache=2
         except KeyError:
-            print "Cache not built for table: %s" % table
-            print "Building cache..."
+            print("Cache not built for table: %s" % table)
+            print("Building cache...")
             cache=2
 
     if cache==2:
         df = load_table(table, cache=False)
-        print "writing table {} to cache".format(table)
+        print("writing table {} to cache".format(table))
         df.to_hdf(cachefn,table)
         return df
 
@@ -73,7 +77,7 @@ def load_table(table, cache=1, cachefn='load_table_cache.hdf', verbose=False):
             'kmag_err':'kic_kmag_err',
             'degree_ra':'kic_ra', 'degree_dec':'kic_dec'
         }
-        df = df.rename(columns=namemap)[namemap.values()]
+        df = df.rename(columns=namemap)[list(namemap.values())]
 
     elif table=='m17':
         df = load_table('stellar17')
@@ -86,9 +90,9 @@ def load_table(table, cache=1, cachefn='load_table_cache.hdf', verbose=False):
     # Gaia DR2
     elif table=='gaia2':
         fn = os.path.join(DATADIR, 'xmatch_m17_gaiadr2-result.csv')
-        df = cksgaia.xmatch.read_xmatch_gaia2(fn)
+        df = xmatch.read_xmatch_gaia2(fn)
         # Systematic offset from Zinn et al. (2018)
-        df['gaia2_sparallax'] += 0.053 
+        df['gaia2_sparallax'] += 0.053
 
     # Johnson 2017
     elif table=='j17':
@@ -136,24 +140,24 @@ def load_table(table, cache=1, cachefn='load_table_cache.hdf', verbose=False):
 
     # Merged tables
     elif table=='m17+gaia2':
-        print "performing crossmatch on gaia2"
-        df = cksgaia.io.load_table('m17')
+        print("performing crossmatch on gaia2")
+        df = io.load_table('m17')
         df = df.rename(columns={'m17_kepmag':'kic_kepmag'})
         gaia = load_table('gaia2')
         stars = df['id_kic kic_kepmag'.split()].drop_duplicates()
-        mbest,mfull = cksgaia.xmatch.xmatch_gaia2(stars,gaia,'id_kic','gaia2')
+        mbest,mfull = xmatch.xmatch_gaia2(stars,gaia,'id_kic','gaia2')
         df = pd.merge(df,mbest.drop(['kic_kepmag'],axis=1),on='id_kic')
 
     elif table=='m17+gaia2+j17':
-        print "performing crossmatch on gaia2"
-        df1 = cksgaia.io.load_table('m17+gaia2') 
-        df2 = cksgaia.io.load_table('j17') 
+        print("performing crossmatch on gaia2")
+        df1 = io.load_table('m17+gaia2')
+        df2 = io.load_table('j17')
         df2 = df2.drop(['kic_kepmag'],axis=1) # duplicated
         df = pd.merge(df1,df2,on='id_kic')
 
     elif table == 'kic':
-        fname = os.path.join(DATADIR, 'kic_q0_q17.hdf')
-        kic = pd.read_hdf(fname)
+        fname = os.path.join(DATADIR, 'kic_q0_q17.csv')
+        kic = pd.read_csv(fname)
         s17 = load_table('m17+gaia2')
         df = pd.merge(s17, kic, left_on='id_kic', right_on='KICID')
 
@@ -185,7 +189,7 @@ def load_table(table, cache=1, cachefn='load_table_cache.hdf', verbose=False):
         df['distance'] = np.array(1 / df.gaia2_sparallax * 1000) * u.pc
         df['ra'] = df['m17_ra']
         df['dec'] = df['m17_dec']
-        df = cksgaia.extinction.add_extinction(df,'bayestar2017')
+        df = extinction.add_extinction(df,'bayestar2017')
         df = df.drop('distance ra dec'.split(),axis=1)
 
     elif table=='m17+gaia2+j17+iso':
@@ -193,12 +197,12 @@ def load_table(table, cache=1, cachefn='load_table_cache.hdf', verbose=False):
         df2 = load_table('iso')
         df = pd.merge(df1, df2, on='id_starname')
         g = df.groupby('id_starname')
-        print "number of stars with gaia parallax: {}".format(len(g.nth(0)))
+        print("number of stars with gaia parallax: {}".format(len(g.nth(0))))
         query = 'gaia2_sparallax_over_err > 10'
         df = df.query(query)
         g = df.groupby('id_starname')
-        print "requiring {}: {}".format(query,len(g.nth(0)))
-        
+        print("requiring {}: {}".format(query,len(g.nth(0))))
+
     elif table=='m17+gaia2+j17+iso+fur17':
         df1 = load_table('m17+gaia2+j17+iso')
         df2 = load_table('fur17')
@@ -207,7 +211,7 @@ def load_table(table, cache=1, cachefn='load_table_cache.hdf', verbose=False):
 
     elif table == "cksgaia-planets":
         df2 = load_table('m17+gaia2+j17+iso+fur17')
-        df = cksgaia.calc.update_planet_parameters(df2)
+        df = calc.update_planet_parameters(df2)
 
     elif table == "cksgaia-planets-filtered":
         df = load_table('cksgaia-planets')
@@ -215,7 +219,7 @@ def load_table(table, cache=1, cachefn='load_table_cache.hdf', verbose=False):
 
     elif table == 'cksgaia-planets-weights':
         df = load_table('cksgaia-planets-filtered')
-        df = cksgaia.completeness.weight_merge(df)
+        df = completeness.weight_merge(df)
 
     elif table == "cks3":
         df = pd.read_csv(os.path.join(DATADIR, 'cks3-planet-parameters.csv'))
@@ -228,7 +232,7 @@ def load_table(table, cache=1, cachefn='load_table_cache.hdf', verbose=False):
         df['gdir_srad_err2'] = df['iso_srad_err2']
 
         m = pd.merge(df, dfw, on='id_koicand', suffixes=['', '_w'])
-        print m.columns
+        print(m.columns)
         df = m
 
     else:
@@ -291,7 +295,7 @@ def read_silva15(fn):
 
     df = pd.DataFrame(df).convert_objects(convert_numeric=True)
     df['teff_err2'] = -1.0 * df['teff_err1']
-    df['slogage'] = np.log10(df['sage']) + 9 
+    df['slogage'] = np.log10(df['sage']) + 9
     df['slogage_err1'] = np.log10(df.sage+df.sage_err1)+9 - df.slogage
     df['slogage_err2'] = np.log10(df.sage+df.sage_err2)+9 - df.slogage
     df['fe_err2'] = -1.0 * df['fe_err1']
@@ -309,7 +313,7 @@ def read_huber13(fn, readme):
         'e_Mass':'h13_smass_err',
         'e_Rad':'h13_srad_err',
     }
-    df = df.rename(columns=namemap)[namemap.values()]
+    df = df.rename(columns=namemap)[list(namemap.values())]
     df = df.query('h13_srad > 0.5')
     df['id_kic'] = df.id_kic.astype(int)
     return df
@@ -317,22 +321,22 @@ def read_huber13(fn, readme):
 def read_furlan17_table2(fn):
     df = pd.read_csv(fn,sep='\s+')
     namemap = {'KOI':'id_koi','KICID':'id_kic','Observatories':'ao_obs'}
-    df = df.rename(columns=namemap)[namemap.values()]
-    df['id_starname'] = ['K'+str(x).rjust(5, '0') for x in df.id_koi] 
+    df = df.rename(columns=namemap)[list(namemap.values())]
+    df['id_starname'] = ['K'+str(x).rjust(5, '0') for x in df.id_koi]
     df = add_prefix(df,'fur17_')
     return df
 
 def read_furlan17_table9(fn):
     names = """
-    id_koi hst hst_err i i_err 692 692_err lp600 lp600_err jmag jmag_err 
-    kmag kmag_err jkdwarf jkdwarf_err jkgiant jkgiant_err rcorr_avg 
+    id_koi hst hst_err i i_err 692 692_err lp600 lp600_err jmag jmag_err
+    kmag kmag_err jkdwarf jkdwarf_err jkgiant jkgiant_err rcorr_avg
     rcorr_avg_err
     """.split()
 
     df = pd.read_csv(fn,sep='\s+',skiprows=2,names=names)
-    df['id_starname'] = ['K'+str(x).rjust(5, '0') for x in df.id_koi] 
+    df['id_starname'] = ['K'+str(x).rjust(5, '0') for x in df.id_koi]
     df = add_prefix(df,'fur17_')
-    return df 
+    return df
 
 # Table manipulation
 
@@ -344,7 +348,7 @@ def add_prefix(df,prefix,ignore=['id']):
             if col.count(_ignore) > 0:
                 skip = True
         if not skip:
-            namemap[col] = prefix + col 
+            namemap[col] = prefix + col
     df = df.rename(columns=namemap)
     return df
 
@@ -356,7 +360,7 @@ def sub_prefix(df, prefix,ignore=['id']):
             if col.count(_ignore) > 0:
                 skip = True
         if not skip:
-            namemap[col] = col.replace(prefix,'') 
+            namemap[col] = col.replace(prefix,'')
     df = df.rename(columns=namemap)
     return df
 
@@ -370,6 +374,6 @@ def order_columns(df, verbose=False, drop=True):
 
     df = df[cols]
     if verbose and (len(cols) < len(columns)):
-        print "table contains columns not defined in coldef"
+        print("table contains columns not defined in coldef")
 
     return df

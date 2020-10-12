@@ -2,10 +2,10 @@ import pylab as pl
 import numpy as np
 import matplotlib
 
-import cksgaia.io
-import cksgaia.misc
-import cksgaia.errors
-from cksgaia.plot.config import *
+from .. import io
+from .. import misc
+from .. import errors
+from .config import *
 
 
 def fig_per_prad():
@@ -43,7 +43,7 @@ def fig_insol_prad():
     #xt = [10000,3000,1000,300,100,30,10,3,1]
     #_xt, _xtl = pl.xticks(xt,xt)
     #pl.setp(_xtl, rotation=45)
-    
+
     pl.xlim(10000,1)
     pl.ylim(0.25,20)
     pl.xlabel('Stellar light intensity relative to Earth')
@@ -356,7 +356,7 @@ def srad_err_hist():
     old['iso_srad_frac_err'] = (old['iso_srad_err1'] - old['iso_srad_err2'])/2. / old['iso_srad']
     new['gdir_srad_frac_err'] = (new['gdir_srad_err1'] - new['gdir_srad_err2'])/2. / new['gdir_srad']
 
-    print len(old), len(new)
+    print(len(old), len(new))
 
     old['iso_srad_frac_err'] *= 100
     new['gdir_srad_frac_err'] *= 100
@@ -402,7 +402,7 @@ def prad_err_hist():
     old['iso_prad_frac_err'] *= 100
     new['gdir_prad_frac_err'] *= 100
 
-    print len(old), len(new)
+    print(len(old), len(new))
 
     med_old = np.nanmedian(old['iso_prad_frac_err'])
     med_new = np.nanmedian(new['gdir_prad_frac_err'])

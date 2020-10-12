@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 from collections import OrderedDict
 
-import cksgaia.io
-from cksgaia.errors import equad
+from . import io
+from .errors import equad
 
 SEED = 0  # reproducability
 rand = np.random.RandomState(SEED)
@@ -139,7 +139,7 @@ def table_statistics():
         (df['giso_sma_err1'] / df['giso_sma']).median() * 100)
 
     for k, v in d.iteritems():
-        print r"{{{}}}{{{}}}".format(k, v)
+        print(r"{{{}}}{{{}}}".format(k, v))
 
 
 def kdeslice(x, xvalue, kde):
@@ -153,7 +153,7 @@ def kdeslice(x, xvalue, kde):
     """
 
     pos = np.argmin(np.abs(x - xvalue))
-    print pos
+    print(pos)
     sl = kde[pos,:].flatten()
 
     return sl
@@ -196,5 +196,3 @@ def average_in_box(sample, box, col1='gdir_prad', col2='koi_period', logparam=Tr
         avg_rad, err_rad = weighted_avg_and_std(q[col1], w)
         avg_per, err_per = weighted_avg_and_std(q[col2], w)
         return [(avg_per, avg_rad), (err_per, err_rad)]
-
-
